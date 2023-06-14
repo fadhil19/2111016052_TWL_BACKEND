@@ -1,54 +1,71 @@
+const cors = require("cors");
 const express = require('express');
 const app = express();
+const mongoose = require('mongoose');
 const port = 3000; // Ganti dengan port yang Anda inginkan
+mongoose.connect('mongodb://127.0.0.1/test', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+const Schema = mongoose.Schema;
+const mahasiswaSchema = new Schema({
+  name: String,
+  nim: String,
+  birthdate: Date,
+  address: String
+});
+const mahasiswaModel = mongoose.model('Mahasiswa', mahasiswaSchema);
 
 let products = ['tt','ii'];
 
 // Menggunakan middleware bodyParser
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.json());app.use(cors({origin:"*"}));
 
-app.get('/products', (req, res) => {
-    res.json(products);
+app.get('/mahasiswa', async  (req, res) => {
+  const mahasiswa = await mahasiswaModel.find();
+  res.json(mahasiswa);
   });
   
-  app.get('/products/:id', (req, res) => {
-    const productId = req.params.id;
-    const product = products.find(product => product.id === productId);
-    if (product) {
-      res.json(product);
+app.get('/mahasiswa/:nim', async (req, res) => {
+    const nim = req.params.nim;
+    const mahasiswa = await mahasiswaModel.find({nim:nim});
+    if (mahasiswa) {
+      res.json(mahasiswa);
     } else {
-      res.status(404).json({ error: 'Product not found' });
+      res.status(404).json({ error: 'Mahasiswa tidak ada!' });
     }
   });
 
-  app.post('/products', (req, res) => {
-    const { name, price, description } = req.body;
-    const newProduct = { id: generateId(), name, price, description };
-    products.push(newProduct);
-    res.status(201).json(newProduct);
+  app.post('/mahasiswa', async (req, res) => {
+    const newMahasiswa = new mahasiswaModel(req.body);
+    await newMahasiswa.save();
+    res.json(newMahasiswa);
   });
   
-  app.put('/products/:id', (req, res) => {
-    const productId = req.params.id;
-    const { name, price, description } = req.body;
-    const productIndex = products.findIndex(product => product.id === productId);
-    if (productIndex !== -1) {
-      products[productIndex] = { ...products[productIndex], name, price, description };
-      res.json(products[productIndex]);
-    } else {
-      res.status(404).json({ error: 'Product not found' });
-    }
-  });
+  // Update data by NIM
+  app.put('/mahasiswa/:nim', async (req, res) => {
+  const { nim } = req.params;
+  const newMahasiswa = req.body;
+
+  try {
+    const updatedData = await mahasiswaModel.findOneAndUpdate({ nim: nim }, newMahasiswa, { new: true });
+    res.json(updatedData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'An error occurred while updating the data' });
+  }
+});
   
-  app.delete('/products/:id', (req, res) => {
-    const productId = req.params.id;
-    const productIndex = products.findIndex(product => product.id === productId);
-    if (productIndex !== -1) {
-      const deletedProduct = products.splice(productIndex, 1);
-      res.json(deletedProduct[0]);
-    } else {
-      res.status(404).json({ error: 'Product not found' });
+  app.delete('/mahasiswa/:nim', async (req, res) => {
+    const { nim } = req.params;
+
+    try {
+      await mahasiswaModel.findOneAndDelete({ nim: nim });
+      res.json({ message: 'Data deleted successfully' });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'An error occurred while deleting the data' });
     }
   });
   
